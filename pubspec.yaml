@@ -1,0 +1,23 @@
+name: dhamar_customs_cashbox
+description: نظام صندوق مكتب العمال - ساحة الأربعين - جمارك ذمار (يعمل بدون إنترنت بالكامل مع قارئ خط اليد العربي المحلي)
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  shared_preferences: any
+  path_provider: any
+  image_picker: any
+  url_launcher: any
+  share_plus: any
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/tessdata/

@@ -1,0 +1,72 @@
+name: Build
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: يبني
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Generate Android platform files & bundle Offline Arabic OCR
+        run: |
+          if [ -f dhamar_customs_cashbox/pubspec.yaml ]; then
+            cp -r dhamar_customs_cashbox/* .
+          fi
+          cp lib/main.dart lib/main.dart.bak
+          flutter create --platforms=android --project-name dhamar_customs_cashbox .
+          mv lib/main.dart.bak lib/main.dart
+          mkdir -p assets/tessdata
+          mkdir -p android/app/src/main/assets/tessdata
+          curl -L -sS https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/ara.traineddata -o assets/tessdata/ara.traineddata
+          curl -L -sS https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/eng.traineddata -o assets/tessdata/eng.traineddata
+          cp assets/tessdata/ara.traineddata android/app/src/main/assets/tessdata/ara.traineddata
+          cp assets/tessdata/eng.traineddata android/app/src/main/assets/tessdata/eng.traineddata
+          python3 scripts/patch_android_manifest.py
+
+      - name: Install dependencies
+        run: |
+          flutter pub upgrade --major-versions
+          flutter pub get
+
+      - name: Build Release APK
+        run: |
+          flutter build apk --release --no-tree-shake-icons
+          cp build/app/outputs/flutter-apk/app-release.apk dhamar-customs-cashbox.apk
+
+      - name: Upload Release APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Publish Direct Download APK to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: "تطبيق صندوق مكتب العمال - جمارك ذمار (إصدار #${{ github.run_number }})"
+          body: "اضغط على ملف **dhamar-customs-cashbox.apk** بالأسفل لتحميل التطبيق وتثبيته مباشرة على الهاتف (يعمل بدون إنترنت بالكامل ويدعم قراءة السندات وتسكين كل مربع في مكانه)."
+          files: |
+            dhamar-customs-cashbox.apk
+            build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
